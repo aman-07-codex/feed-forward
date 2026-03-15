@@ -15,17 +15,37 @@ const navLinks = [
 export const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState("top");
   const location = useLocation();
 
   useEffect(() => {
-    const handler = () => setScrolled(window.scrollY > 20);
-    window.addEventListener("scroll", handler);
-    return () => window.removeEventListener("scroll", handler);
+    const handleScroll = () => {
+      setScrolled(window.scrollY > 20);
+
+      const scrollPosition = window.scrollY + 150; // offset for navbar
+
+      const featuresEl = document.getElementById("features");
+      const howItWorksEl = document.getElementById("how-it-works");
+
+      // Check in reverse order (lowest section first)
+      if (howItWorksEl && scrollPosition >= howItWorksEl.offsetTop) {
+        setActiveSection("how-it-works");
+      } else if (featuresEl && scrollPosition >= featuresEl.offsetTop) {
+        setActiveSection("features");
+      } else {
+        setActiveSection("top");
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll);
+    setTimeout(handleScroll, 100); // Initial check
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const scrollToSection = (e: React.MouseEvent, id: string) => {
     e.preventDefault();
     setMobileOpen(false);
+    setActiveSection(id); // Optimistically update before scroll finishes
 
     if (id === "top") {
       window.scrollTo({ top: 0, behavior: "smooth" });
@@ -64,19 +84,18 @@ export const Navbar = () => {
           <Logo />
           
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2 relative">
             {navLinks.map(link => (
               <motion.button
                 key={link.href}
                 onClick={(e) => scrollToSection(e, link.id)}
-                whileHover={{ scale: 1.05, backgroundColor: "rgba(var(--primary), 0.1)" }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
                 className={cn(
-                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
-                  scrolled ? "hover:bg-accent/50" : "hover:bg-white/10",
-                  location.hash === `#${link.id}` || (link.id === "top" && !location.hash)
-                    ? "text-primary bg-primary/5" 
-                    : "text-foreground/80"
+                  "relative px-4 py-2 rounded-full text-sm font-medium transition-colors duration-300",
+                  activeSection === link.id
+                    ? "text-primary bg-primary/20 font-semibold" 
+                    : "text-foreground/80 hover:bg-accent/50 hover:text-foreground"
                 )}
               >
                 {link.label}
@@ -117,7 +136,9 @@ export const Navbar = () => {
                   whileTap={{ scale: 0.98 }}
                   className={cn(
                     "w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all",
-                    location.hash === `#${link.id}` ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent"
+                    activeSection === link.id
+                      ? "bg-primary/20 text-primary font-semibold" 
+                      : "text-muted-foreground hover:bg-accent"
                   )}
                 >
                   {link.label}
