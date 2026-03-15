@@ -71,8 +71,14 @@ const LandingPage = () => {
       <Navbar />
 
       {/* Hero */}
-      <section className="relative pt-28 pb-20 sm:pt-36 sm:pb-28 overflow-hidden">
-        <div className="absolute inset-0 gradient-hero" />
+      <section className="relative pt-28 pb-20 sm:pt-36 sm:pb-28 overflow-hidden hero-bg-section">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center bg-no-repeat"
+          style={{ backgroundImage: "url('/hero-food-bg.png')" }}
+        />
+        {/* Dark overlay for text readability */}
+        <div className="absolute inset-0 bg-gradient-to-br from-background/90 via-background/80 to-background/70" />
         <div className="absolute top-20 right-10 w-72 h-72 bg-primary/5 rounded-full blur-3xl" />
         <div className="absolute bottom-10 left-10 w-96 h-96 bg-secondary/5 rounded-full blur-3xl" />
         
