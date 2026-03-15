@@ -7,9 +7,9 @@ import { ActionButton } from "./ActionButton";
 import { cn } from "@/lib/utils";
 
 const navLinks = [
-  { label: "Home", href: "/" },
-  { label: "How it Works", href: "/#how-it-works" },
-  { label: "Features", href: "/#features" },
+  { label: "Home", href: "/", id: "top" },
+  { label: "How it Works", href: "/#how-it-works", id: "how-it-works" },
+  { label: "Features", href: "/#features", id: "features" },
 ];
 
 export const Navbar = () => {
@@ -22,6 +22,33 @@ export const Navbar = () => {
     window.addEventListener("scroll", handler);
     return () => window.removeEventListener("scroll", handler);
   }, []);
+
+  const scrollToSection = (e: React.MouseEvent, id: string) => {
+    e.preventDefault();
+    setMobileOpen(false);
+
+    if (id === "top") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      return;
+    }
+
+    const element = document.getElementById(id);
+    if (element) {
+      const offset = 80; // Offset for navbar height
+      const bodyRect = document.body.getBoundingClientRect().top;
+      const elementRect = element.getBoundingClientRect().top;
+      const elementPosition = elementRect - bodyRect;
+      const offsetPosition = elementPosition - offset;
+
+      window.scrollTo({
+        top: offsetPosition,
+        behavior: "smooth"
+      });
+    } else if (location.pathname !== "/") {
+      // If not on home page, navigate to home with hash
+      window.location.href = `/#${id}`;
+    }
+  };
 
   return (
     <motion.nav
@@ -37,18 +64,23 @@ export const Navbar = () => {
           <Logo />
           
           {/* Desktop nav */}
-          <div className="hidden md:flex items-center gap-8">
+          <div className="hidden md:flex items-center gap-2">
             {navLinks.map(link => (
-              <Link
+              <motion.button
                 key={link.href}
-                to={link.href}
+                onClick={(e) => scrollToSection(e, link.id)}
+                whileHover={{ scale: 1.05, backgroundColor: "rgba(var(--primary), 0.1)" }}
+                whileTap={{ scale: 0.95 }}
                 className={cn(
-                  "text-sm font-medium transition-colors hover:text-primary",
-                  location.pathname === link.href ? "text-primary" : "text-muted-foreground"
+                  "px-4 py-2 rounded-full text-sm font-medium transition-all duration-200",
+                  scrolled ? "hover:bg-accent/50" : "hover:bg-white/10",
+                  location.hash === `#${link.id}` || (link.id === "top" && !location.hash)
+                    ? "text-primary bg-primary/5" 
+                    : "text-foreground/80"
                 )}
               >
                 {link.label}
-              </Link>
+              </motion.button>
             ))}
           </div>
 
@@ -77,16 +109,19 @@ export const Navbar = () => {
             exit={{ opacity: 0, height: 0 }}
             className="md:hidden bg-card border-b border-border"
           >
-            <div className="px-4 py-4 space-y-3">
+            <div className="px-4 py-4 space-y-2">
               {navLinks.map(link => (
-                <Link
+                <motion.button
                   key={link.href}
-                  to={link.href}
-                  onClick={() => setMobileOpen(false)}
-                  className="block py-2 text-sm font-medium text-muted-foreground hover:text-primary"
+                  onClick={(e) => scrollToSection(e, link.id)}
+                  whileTap={{ scale: 0.98 }}
+                  className={cn(
+                    "w-full text-left px-4 py-3 rounded-xl text-sm font-medium transition-all",
+                    location.hash === `#${link.id}` ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-accent"
+                  )}
                 >
                   {link.label}
-                </Link>
+                </motion.button>
               ))}
               <div className="pt-2 flex flex-col gap-2">
                 <Link to="/login" onClick={() => setMobileOpen(false)}>
