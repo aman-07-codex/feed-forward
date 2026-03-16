@@ -1,13 +1,64 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { ActionButton } from "@/components/ActionButton";
-import { Eye, EyeOff, Leaf, AlertCircle } from "lucide-react";
+import { Eye, EyeOff, Leaf, AlertCircle, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const RegisterPage = () => {
   const [tab, setTab] = useState<"provider" | "ngo">("provider");
   const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  // Form State
+  const [formData, setFormData] = useState({
+    email: '',
+    password: '',
+    name: '', // full name or NGO name
+    organization_name: '', // provider specific or NGO ID
+    phone: '',
+    address: '', // location or service area
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      // Sign Up User — profile is auto-created via database trigger
+      // using the metadata we pass here
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: formData.email,
+        password: formData.password,
+        options: {
+          data: {
+            full_name: formData.name,
+            role: tab,
+            organization_name: tab === 'provider' ? formData.organization_name : formData.name,
+            phone: formData.phone,
+            address: formData.address,
+          }
+        }
+      });
+
+      if (authError) throw authError;
+
+      toast.success("Registration successful! Check your email for a confirmation link, then sign in.");
+      navigate('/login');
+
+    } catch (error: any) {
+      toast.error(error.message || "An error occurred during registration");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -36,40 +87,44 @@ const RegisterPage = () => {
             ))}
           </div>
 
-          <form className="space-y-4 mt-6" onSubmit={e => e.preventDefault()}>
+          <form className="space-y-4 mt-6" onSubmit={handleRegister}>
             {tab === "provider" ? (
               <>
-                <InputField label="Full Name" placeholder="John Doe" />
-                <InputField label="Organization" placeholder="Restaurant name" />
-                <InputField label="Phone" placeholder="+91 98765 43210" type="tel" />
-                <InputField label="Email" placeholder="you@example.com" type="email" />
+                <InputField name="name" value={formData.name} onChange={handleChange} label="Full Name" placeholder="John Doe" required />
+                <InputField name="organization_name" value={formData.organization_name} onChange={handleChange} label="Organization" placeholder="Restaurant name" required />
+                <InputField name="phone" value={formData.phone} onChange={handleChange} label="Phone" placeholder="+91 98765 43210" type="tel" required />
+                <InputField name="email" value={formData.email} onChange={handleChange} label="Email" placeholder="you@example.com" type="email" required />
+                
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Password</label>
                   <div className="relative">
-                    <input type={showPw ? "text" : "password"} placeholder="••••••••" className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all pr-10" />
+                    <input name="password" value={formData.password} onChange={handleChange} type={showPw ? "text" : "password"} placeholder="••••••••" required className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all pr-10" />
                     <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                       {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
-                <InputField label="Location" placeholder="City, State" />
+                
+                <InputField name="address" value={formData.address} onChange={handleChange} label="Location" placeholder="City, State" required />
               </>
             ) : (
               <>
-                <InputField label="NGO Name" placeholder="FoodForAll Foundation" />
-                <InputField label="Registration ID" placeholder="NGO-2024-XXXX" />
-                <InputField label="Phone" placeholder="+91 98765 43210" type="tel" />
-                <InputField label="Email" placeholder="ngo@example.com" type="email" />
+                <InputField name="name" value={formData.name} onChange={handleChange} label="NGO Name" placeholder="FoodForAll Foundation" required />
+                <InputField name="organization_name" value={formData.organization_name} onChange={handleChange} label="Registration ID" placeholder="NGO-2024-XXXX" required />
+                <InputField name="phone" value={formData.phone} onChange={handleChange} label="Phone" placeholder="+91 98765 43210" type="tel" required />
+                <InputField name="email" value={formData.email} onChange={handleChange} label="Email" placeholder="ngo@example.com" type="email" required />
+                
                 <div className="space-y-2">
                   <label className="text-sm font-medium text-foreground">Password</label>
                   <div className="relative">
-                    <input type={showPw ? "text" : "password"} placeholder="••••••••" className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all pr-10" />
+                    <input name="password" value={formData.password} onChange={handleChange} type={showPw ? "text" : "password"} placeholder="••••••••" required className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all pr-10" />
                     <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                       {showPw ? <EyeOff size={18} /> : <Eye size={18} />}
                     </button>
                   </div>
                 </div>
-                <InputField label="Service Area" placeholder="District or city area" />
+                
+                <InputField name="address" value={formData.address} onChange={handleChange} label="Service Area" placeholder="District or city area" required />
               </>
             )}
 
@@ -80,9 +135,10 @@ const RegisterPage = () => {
               </p>
             </div>
 
-            <Link to={tab === "provider" ? "/provider/dashboard" : "/ngo/dashboard"}>
-              <ActionButton className="w-full" size="lg">Create Account</ActionButton>
-            </Link>
+            <ActionButton className="w-full" size="lg" disabled={loading} type="submit">
+              {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+              {loading ? "Creating Account..." : "Create Account"}
+            </ActionButton>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
@@ -95,11 +151,15 @@ const RegisterPage = () => {
   );
 };
 
-const InputField = ({ label, placeholder, type = "text" }: { label: string; placeholder: string; type?: string }) => (
+const InputField = ({ label, placeholder, type = "text", name, value, onChange, required }: { label: string; placeholder: string; type?: string; name?: string; value?: string; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean }) => (
   <div className="space-y-2">
     <label className="text-sm font-medium text-foreground">{label}</label>
     <input
       type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      required={required}
       placeholder={placeholder}
       className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
     />

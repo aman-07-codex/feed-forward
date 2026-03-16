@@ -1,9 +1,12 @@
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { TopBar } from "@/components/TopBar";
 import { ActionButton } from "@/components/ActionButton";
-import { LayoutDashboard, Plus, Package, BarChart3, User, AlertCircle } from "lucide-react";
+import { LayoutDashboard, Plus, Package, BarChart3, User, AlertCircle, Loader2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useState } from "react";
+import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/contexts/AuthContext";
+import { toast } from "sonner";
 
 const sidebarItems = [
   { label: "Dashboard", href: "/provider/dashboard", icon: LayoutDashboard },
@@ -14,7 +17,75 @@ const sidebarItems = [
 ];
 
 const AddFoodPage = () => {
+  const { user } = useAuth();
   const [success, setSuccess] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    food_name: '',
+    food_type: 'Cooked Food',
+    quantity: '',
+    serves_count: '',
+    pickup_deadline_hours: '1 Hour',
+    pickup_location: '',
+    notes: ''
+  });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  const calculateDeadline = (hoursString: string) => {
+    const hours = parseInt(hoursString.split(' ')[0], 10);
+    const deadline = new Date();
+    deadline.setHours(deadline.getHours() + hours);
+    return deadline.toISOString();
+  };
+
+  const handlePostFood = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user) return;
+    
+    setLoading(true);
+
+    try {
+      const deadline = calculateDeadline(formData.pickup_deadline_hours);
+
+      const { error } = await supabase.from('food_posts').insert([
+        {
+          provider_id: user.id,
+          food_name: formData.food_name,
+          food_type: formData.food_type,
+          quantity: formData.quantity,
+          serves_count: parseInt(formData.serves_count, 10),
+          pickup_deadline: deadline,
+          pickup_location: formData.pickup_location,
+          notes: formData.notes,
+          status: 'available'
+        }
+      ]);
+
+      if (error) throw error;
+      
+      setSuccess(true);
+      // Reset form
+      setFormData({
+        food_name: '',
+        food_type: 'Cooked Food',
+        quantity: '',
+        serves_count: '',
+        pickup_deadline_hours: '1 Hour',
+        pickup_location: '',
+        notes: ''
+      });
+      
+    } catch (error: any) {
+      console.error(error);
+      toast.error("Failed to post food donation. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <DashboardLayout items={sidebarItems} role="provider">
@@ -53,12 +124,12 @@ const AddFoodPage = () => {
 
       <div className="max-w-2xl">
         <div className="matte-card rounded-2xl p-6 sm:p-8">
-          <form className="space-y-5" onSubmit={e => { e.preventDefault(); setSuccess(true); }}>
-            <InputField label="Food Item Name" placeholder="e.g., Vegetable Biryani" />
+          <form className="space-y-5" onSubmit={handlePostFood}>
+            <InputField name="food_name" value={formData.food_name} onChange={handleChange} label="Food Item Name" placeholder="e.g., Vegetable Biryani" required />
             
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Food Type</label>
-              <select className="w-full p-3 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all">
+              <select name="food_type" value={formData.food_type} onChange={handleChange} className="w-full p-3 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all">
                 <option>Cooked Food</option>
                 <option>Raw Ingredients</option>
                 <option>Packaged Food</option>
@@ -69,26 +140,29 @@ const AddFoodPage = () => {
             </div>
 
             <div className="grid grid-cols-2 gap-4">
-              <InputField label="Quantity (kg)" placeholder="5" type="number" />
-              <InputField label="Serves how many" placeholder="50" type="number" />
+              <InputField name="quantity" value={formData.quantity} onChange={handleChange} label="Quantity (kg/units)" placeholder="5" type="text" required />
+              <InputField name="serves_count" value={formData.serves_count} onChange={handleChange} label="Serves how many" placeholder="50" type="number" required />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label className="text-sm font-medium text-foreground">Pickup Deadline</label>
-                <select className="w-full p-3 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all">
+                <select name="pickup_deadline_hours" value={formData.pickup_deadline_hours} onChange={handleChange} className="w-full p-3 rounded-xl border border-border bg-card text-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all">
                   <option>1 Hour</option>
                   <option>2 Hours</option>
                   <option>4 Hours</option>
                   <option>6 Hours</option>
                 </select>
               </div>
-              <InputField label="Location" placeholder="Address" />
+              <InputField name="pickup_location" value={formData.pickup_location} onChange={handleChange} label="Pickup Location" placeholder="Address" required />
             </div>
 
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Notes</label>
               <textarea
+                name="notes"
+                value={formData.notes}
+                onChange={handleChange}
                 rows={3}
                 placeholder="Any additional details about the food..."
                 className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all resize-none"
@@ -103,8 +177,10 @@ const AddFoodPage = () => {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <ActionButton type="submit" size="lg" className="flex-1">Post Donation</ActionButton>
-              <ActionButton variant="outline" size="lg">Save Draft</ActionButton>
+              <ActionButton type="submit" size="lg" className="flex-1" disabled={loading}>
+                {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+                {loading ? "Posting..." : "Post Donation"}
+              </ActionButton>
             </div>
           </form>
         </div>
@@ -113,10 +189,18 @@ const AddFoodPage = () => {
   );
 };
 
-const InputField = ({ label, placeholder, type = "text" }: { label: string; placeholder: string; type?: string }) => (
+const InputField = ({ label, placeholder, type = "text", name, value, onChange, required }: { label: string; placeholder: string; type?: string; name?: string; value?: string | number; onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean }) => (
   <div className="space-y-2">
     <label className="text-sm font-medium text-foreground">{label}</label>
-    <input type={type} placeholder={placeholder} className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all" />
+    <input
+      type={type}
+      name={name}
+      value={value}
+      onChange={onChange}
+      required={required}
+      placeholder={placeholder}
+      className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
+    />
   </div>
 );
 

@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { Menu, X } from "lucide-react";
+import { Menu, X, LogOut } from "lucide-react";
 import { Logo } from "./Logo";
 import { ActionButton } from "./ActionButton";
 import { cn } from "@/lib/utils";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const navLinks = [
   { label: "Home", href: "/", id: "top" },
-  { label: "How it Works", href: "/#how-it-works", id: "how-it-works" },
   { label: "Features", href: "/#features", id: "features" },
+  { label: "How it Works", href: "/#how-it-works", id: "how-it-works" },
 ];
 
 export const Navbar = () => {
@@ -17,6 +20,14 @@ export const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("top");
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, session } = useAuth();
+
+  const handleSignOut = async () => {
+    await supabase.auth.signOut();
+    toast.success("Signed out successfully.");
+    navigate("/");
+  };
 
   useEffect(() => {
     const handleScroll = () => {
@@ -104,12 +115,25 @@ export const Navbar = () => {
           </div>
 
           <div className="hidden md:flex items-center gap-3">
-            <Link to="/login">
-              <ActionButton variant="ghost" size="sm">Login</ActionButton>
-            </Link>
-            <Link to="/register">
-              <ActionButton size="sm">Donate Food</ActionButton>
-            </Link>
+            {session ? (
+              <>
+                <Link to="/provider/dashboard">
+                  <ActionButton variant="ghost" size="sm">Dashboard</ActionButton>
+                </Link>
+                <ActionButton variant="outline" size="sm" onClick={handleSignOut}>
+                  <LogOut size={16} className="mr-1" /> Sign Out
+                </ActionButton>
+              </>
+            ) : (
+              <>
+                <Link to="/login">
+                  <ActionButton variant="ghost" size="sm">Login</ActionButton>
+                </Link>
+                <Link to="/register">
+                  <ActionButton size="sm">Donate Food</ActionButton>
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Mobile toggle */}
@@ -145,12 +169,25 @@ export const Navbar = () => {
                 </motion.button>
               ))}
               <div className="pt-2 flex flex-col gap-2">
-                <Link to="/login" onClick={() => setMobileOpen(false)}>
-                  <ActionButton variant="outline" size="sm" className="w-full">Login</ActionButton>
-                </Link>
-                <Link to="/register" onClick={() => setMobileOpen(false)}>
-                  <ActionButton size="sm" className="w-full">Donate Food</ActionButton>
-                </Link>
+                {session ? (
+                  <>
+                    <Link to="/provider/dashboard" onClick={() => setMobileOpen(false)}>
+                      <ActionButton variant="outline" size="sm" className="w-full">Dashboard</ActionButton>
+                    </Link>
+                    <ActionButton size="sm" className="w-full" onClick={() => { handleSignOut(); setMobileOpen(false); }}>
+                      <LogOut size={16} className="mr-1" /> Sign Out
+                    </ActionButton>
+                  </>
+                ) : (
+                  <>
+                    <Link to="/login" onClick={() => setMobileOpen(false)}>
+                      <ActionButton variant="outline" size="sm" className="w-full">Login</ActionButton>
+                    </Link>
+                    <Link to="/register" onClick={() => setMobileOpen(false)}>
+                      <ActionButton size="sm" className="w-full">Donate Food</ActionButton>
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           </motion.div>

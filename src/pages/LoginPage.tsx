@@ -1,13 +1,61 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Logo } from "@/components/Logo";
 import { ActionButton } from "@/components/ActionButton";
-import { Eye, EyeOff, Leaf } from "lucide-react";
+import { Eye, EyeOff, Leaf, Loader2 } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 const LoginPage = () => {
   const [role, setRole] = useState<"provider" | "ngo">("provider");
   const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  
+  const [formData, setFormData] = useState({
+    email: "",
+    password: "",
+  });
+  
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email: formData.email,
+        password: formData.password,
+      });
+
+      if (authError) throw authError;
+
+      // Check role mapping
+      if (authData.user) {
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("role")
+          .eq("id", authData.user.id)
+          .single();
+          
+        if (profile) {
+          if (profile.role !== role) {
+            toast.warning(`You are signing in as a ${profile.role}, not a ${role}. Redirecting...`);
+          }
+           navigate(profile.role === "provider" ? "/provider/dashboard" : "/ngo/dashboard");
+        } else {
+           // Fallback if profile somehow missing
+           navigate(role === "provider" ? "/provider/dashboard" : "/ngo/dashboard");
+        }
+        toast.success("Welcome back!");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Failed to sign in. Please check your credentials.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex">
@@ -45,6 +93,7 @@ const LoginPage = () => {
             {(["provider", "ngo"] as const).map(r => (
               <button
                 key={r}
+                type="button"
                 onClick={() => setRole(r)}
                 className={`flex-1 py-2 text-sm font-medium rounded-lg transition-all ${role === r ? "bg-card text-foreground shadow-sm" : "text-muted-foreground"}`}
               >
@@ -53,11 +102,14 @@ const LoginPage = () => {
             ))}
           </div>
 
-          <form className="space-y-4 mt-6" onSubmit={e => e.preventDefault()}>
+          <form className="space-y-4 mt-6" onSubmit={handleLogin}>
             <div className="space-y-2">
               <label className="text-sm font-medium text-foreground">Email</label>
               <input
                 type="email"
+                required
+                value={formData.email}
+                onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 placeholder="you@example.com"
                 className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all"
               />
@@ -67,6 +119,9 @@ const LoginPage = () => {
               <div className="relative">
                 <input
                   type={showPw ? "text" : "password"}
+                  required
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   placeholder="••••••••"
                   className="w-full p-3 rounded-xl border border-border bg-card text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/20 focus:border-primary transition-all pr-10"
                 />
@@ -83,9 +138,10 @@ const LoginPage = () => {
               <a href="#" className="text-primary font-medium hover:underline">Forgot password?</a>
             </div>
 
-            <Link to={role === "provider" ? "/provider/dashboard" : "/ngo/dashboard"}>
-              <ActionButton className="w-full mt-2" size="lg">Sign In</ActionButton>
-            </Link>
+            <ActionButton className="w-full mt-2" size="lg" type="submit" disabled={loading}>
+               {loading ? <Loader2 className="animate-spin mr-2" /> : null}
+               {loading ? "Signing In..." : "Sign In"}
+            </ActionButton>
           </form>
 
           <p className="text-center text-sm text-muted-foreground mt-6">
